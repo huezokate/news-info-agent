@@ -13,7 +13,7 @@ def get_conn() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist, and run any pending migrations."""
     with get_conn() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS digest_entries (
@@ -32,13 +32,23 @@ def init_db() -> None:
         """)
         conn.commit()
 
+        # Migration: add source column (safe to re-run on existing DBs)
+        try:
+            conn.execute(
+                "ALTER TABLE digest_entries ADD COLUMN source TEXT NOT NULL DEFAULT 'hackernews'"
+            )
+            conn.commit()
+            print("[db] Migration applied: added 'source' column.")
+        except Exception:
+            pass  # Column already exists — nothing to do
+
 
 def upsert_entries(entries: list[dict]) -> None:
-    """Insert or replace today's digest entries."""
+    """Insert or replace digest entries (HN + THN combined)."""
     with get_conn() as conn:
         conn.executemany("""
-            INSERT INTO digest_entries (date, rank, hn_id, title, score, url, by, comments, fetched_at)
-            VALUES (:date, :rank, :hn_id, :title, :score, :url, :by, :comments, :fetched_at)
+            INSERT INTO digest_entries (date, rank, hn_id, title, score, url, by, comments, source, fetched_at)
+            VALUES (:date, :rank, :hn_id, :title, :score, :url, :by, :comments, :source, :fetched_at)
             ON CONFLICT(date, rank) DO UPDATE SET
                 hn_id      = excluded.hn_id,
                 title      = excluded.title,
@@ -46,13 +56,14 @@ def upsert_entries(entries: list[dict]) -> None:
                 url        = excluded.url,
                 by         = excluded.by,
                 comments   = excluded.comments,
+                source     = excluded.source,
                 fetched_at = excluded.fetched_at
         """, entries)
         conn.commit()
 
 
 def get_today(today: Optional[str] = None) -> list[dict]:
-    """Return today's top 5 entries."""
+    """Return today's entries ordered by rank."""
     day = today or date.today().isoformat()
     with get_conn() as conn:
         rows = conn.execute(
