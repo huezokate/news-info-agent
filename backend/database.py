@@ -50,23 +50,32 @@ def init_db() -> None:
         except Exception:
             pass  # Column already exists — nothing to do
 
+        # Migration: add description column for RSS article snippets
+        try:
+            conn.execute("ALTER TABLE digest_entries ADD COLUMN description TEXT")
+            conn.commit()
+            print("[db] Migration applied: added 'description' column.")
+        except Exception:
+            pass  # Column already exists — nothing to do
+
 
 def upsert_entries(entries: list[dict]) -> None:
     """Insert or replace digest entries (HN top-5 + RSS spread combined)."""
     with get_conn() as conn:
         conn.executemany("""
-            INSERT INTO digest_entries (date, rank, hn_id, title, score, url, by, comments, source, slot, fetched_at)
-            VALUES (:date, :rank, :hn_id, :title, :score, :url, :by, :comments, :source, :slot, :fetched_at)
+            INSERT INTO digest_entries (date, rank, hn_id, title, score, url, by, comments, source, slot, description, fetched_at)
+            VALUES (:date, :rank, :hn_id, :title, :score, :url, :by, :comments, :source, :slot, :description, :fetched_at)
             ON CONFLICT(date, rank) DO UPDATE SET
-                hn_id      = excluded.hn_id,
-                title      = excluded.title,
-                score      = excluded.score,
-                url        = excluded.url,
-                by         = excluded.by,
-                comments   = excluded.comments,
-                source     = excluded.source,
-                slot       = excluded.slot,
-                fetched_at = excluded.fetched_at
+                hn_id       = excluded.hn_id,
+                title       = excluded.title,
+                score       = excluded.score,
+                url         = excluded.url,
+                by          = excluded.by,
+                comments    = excluded.comments,
+                source      = excluded.source,
+                slot        = excluded.slot,
+                description = excluded.description,
+                fetched_at  = excluded.fetched_at
         """, entries)
         conn.commit()
 
