@@ -308,7 +308,7 @@ export default function Dashboard() {
         >
           <h2 style={styles.sectionTitle} id="digest-heading">
             <span style={styles.sectionDot} aria-hidden="true" />
-            Today's Top 5
+            Today's Digest
           </h2>
 
           {error && (
