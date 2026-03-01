@@ -19,7 +19,10 @@ import FormatPieChart from './FormatPieChart'
 import CopilotChat from './CopilotChat'
 import axios from 'axios'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Normalise the API URL — ensure it always has a protocol so Axios
+// doesn't treat it as a relative path and prepend the frontend origin.
+const _rawApi = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API = /^https?:\/\//i.test(_rawApi) ? _rawApi : `https://${_rawApi}`
 
 const styles = {
   wrapper: {
